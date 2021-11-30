@@ -26,6 +26,7 @@
 
 
 using namespace Menu;
+#define DebugSerial SerialUSB
 
 
 // These define's must be placed at the beginning before #include "TimerInterrupt_Generic.h"
@@ -37,7 +38,9 @@ using namespace Menu;
 #include <TimerInterrupt_Generic.h>
 
 LiquidCrystal_PCF8574 lcd(0x3F);
+// pins by Board
 
+#ifdef f103c8
 // Encoder /////////////////////////////////////
 #define encA PB3
 #define encB PB4
@@ -47,6 +50,36 @@ LiquidCrystal_PCF8574 lcd(0x3F);
 // Create a LTE_Shield object to be used throughout the sketch:
 #define POWER_PIN 5
 #define RESET_PIN 6
+#define lte_Serial Serial2
+
+// RS485 pins
+#define rs485_TX 8
+#define rs485_DE 12
+#define rs485_RE 11
+#define rs485_Serial Serial1
+#endif
+
+#ifdef f407ve
+// Encoder /////////////////////////////////////
+#define encA PE2
+#define encB PE3
+//this encoder has a button here
+#define encBtn PE4
+
+// Create a LTE_Shield object to be used throughout the sketch:
+#define POWER_PIN PE5
+#define RESET_PIN PE6
+#define lte_Serial Serial1
+
+// RS485 pins
+#define rs485_TX PD8
+#define rs485_DE PD12
+#define rs485_RE PD11
+#define rs485_Serial Serial3
+#endif
+
+RS485Class RS485ttl(rs485_Serial,rs485_TX,rs485_DE,rs485_RE);
+
 LTE_Shield lte(POWER_PIN, RESET_PIN);
 
 
@@ -60,7 +93,7 @@ void TimerHandler0(void)
 {
   // Doing something here inside ISR
   clickEncoder.service();
-  //SerialUSB.println("Starting  ITimer0 OK, millis() = " + String(millis()));
+  //DebugSerial.println("Starting  ITimer0 OK, millis() = " + String(millis()));
 }
 
 #define TIMER0_INTERVAL_MS        1      // 1s = 1000ms
@@ -69,26 +102,26 @@ void TimerHandler0(void)
 result doAlert(eventMask e, prompt &item);
 
 result showEvent(eventMask e,navNode& nav,prompt& item) {
-  SerialUSB.print("event: ");
-  SerialUSB.println(e);
+  DebugSerial.print("event: ");
+  DebugSerial.println(e);
   return proceed;
 }
 
 int test=55;
 
 result action1(eventMask e,navNode& nav, prompt &item) {
-  SerialUSB.print("action1 event: ");
-  SerialUSB.print(e);
-  SerialUSB.println(", proceed menu");
-  SerialUSB.flush();
+  DebugSerial.print("action1 event: ");
+  DebugSerial.print(e);
+  DebugSerial.println(", proceed menu");
+  DebugSerial.flush();
   return proceed;
 }
 
 result action2(eventMask e,navNode& nav, prompt &item) {
-  SerialUSB.print("action2 event: ");
-  SerialUSB.print(e);
-  SerialUSB.println(", quiting menu.");
-  SerialUSB.flush();
+  DebugSerial.print("action2 event: ");
+  DebugSerial.print(e);
+  DebugSerial.println(", quiting menu.");
+  DebugSerial.flush();
   return quit;
 }
 
@@ -170,7 +203,7 @@ MENU(mainMenu,"Main menu",doNothing,noEvent,wrapStyle
 #define MAX_DEPTH 2
 
 /*
-const panel panels[] MEMMODE={{0,0,16,2}};SerialUSB.println("Starting  ITimer0 OK, millis() = " + String(millis()));
+const panel panels[] MEMMODE={{0,0,16,2}};DebugSerial.println("Starting  ITimer0 OK, millis() = " + String(millis()));
 navNode* nodes[sizeof(panels)/sizeof(panel)];
 panelsList pList(panels,nodes,1);
 idx_t tops[MAX_DEPTH];
@@ -215,11 +248,11 @@ result idle(menuOut& o,idleEvent e) {
 
 void setup() {
   // put your setup code here, to run once:
-  SerialUSB.begin(); //activate USB CDC driver
+  DebugSerial.begin(); //activate USB CDC driver
   //pinMode(encBtn,INPUT_PULLUP);
   pinMode(LED_BUILTIN,OUTPUT);
-  while(!SerialUSB);
-  SerialUSB.println("Arduino Menu Library");SerialUSB.flush();
+  while(!DebugSerial);
+  DebugSerial.println("Arduino Menu Library");DebugSerial.flush();
   lcd.begin(16, 2);
   lcd.setBacklight(1);
 
@@ -234,14 +267,14 @@ void setup() {
 
   // Interval in microsecs
   if (ITimer0.attachInterruptInterval(TIMER0_INTERVAL_MS * 1000, TimerHandler0))
-    SerialUSB.println("Starting  ITimer0 OK, millis() = " + String(millis()));
+    DebugSerial.println("Starting  ITimer0 OK, millis() = " + String(millis()));
   else
-    SerialUSB.println("Can't set ITimer0. Select another freq. or timer");
+    DebugSerial.println("Can't set ITimer0. Select another freq. or timer");
   delay(2000);
   clickEncoder.setAccelerationEnabled(false);
-  ModbusRTUClient.begin(9600);
-  if ( lte.begin(Serial1) ) {
-      SerialUSB.println("Initialied SARA-R4 module on a hardware serial port.");
+  ModbusRTUClient.begin(RS485ttl, 9600, SERIAL_8N1);
+  if ( lte.begin(lte_Serial) ) {
+      DebugSerial.println("Initialied SARA-R4 module on a hardware serial port.");
   }
 
 }
