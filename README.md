@@ -23,3 +23,12 @@ LTE modem
   RX PA9
   5 PE5
   6 PE6
+
+
+
+LIBRARY ERRORS  ArduinoModbus defines ON as 1, messing up other librarys
+
+
+ARDUINO MODBUS /src/libmodbus/modbus.c line 867 change ON : OFF to 1 : 0
+
+/src/libmodbus/modbus.h remove defines for ON and OFF

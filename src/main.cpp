@@ -2,11 +2,18 @@
 
 
 
-
+//Debug Settings comment out to disable
+#define WaitForUsbSerial        //Wait for Debug Serial connection on startup, comment to turn off
+#define DebugV                  //verbose debuging info... lots of info
+#define DebugI                  //important debug info...
+//NEVER COMMENT FOLLOWING LINE
+#define DebugSerial SerialUSB   //Select which serial port to use for debug messages
+#include <JAHdebugSerial.h>
 
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <TimerInterrupt_Generic.h>
 //#include <LiquidCrystal_I2C.h>//F. Malpartida LCD's driver
 #include <LiquidCrystal_PCF8574.h>
 #include <menu.h>//menu macros and objects
@@ -23,11 +30,11 @@
 #include <ArduinoRS485.h>
 #include <ArduinoModbus.h>
 
+#include <StateMachine.h>
+
 
 
 using namespace Menu;
-#define DebugSerial SerialUSB
-
 
 // These define's must be placed at the beginning before #include "TimerInterrupt_Generic.h"
 #if !( defined(STM32F0) || defined(STM32F1) || defined(STM32F2) || defined(STM32F3)  ||defined(STM32F4) || defined(STM32F7) || \
@@ -35,7 +42,7 @@ using namespace Menu;
        defined(STM32WB) || defined(STM32MP1) )
   #error This code is designed to run on STM32F/L/H/G/WB/MP1 platform! Please check your Tools->Board setting.
 #endif
-#include <TimerInterrupt_Generic.h>
+
 
 LiquidCrystal_PCF8574 lcd(0x3F);
 // pins by Board
@@ -93,35 +100,34 @@ void TimerHandler0(void)
 {
   // Doing something here inside ISR
   clickEncoder.service();
-  //DebugSerial.println("Starting  ITimer0 OK, millis() = " + String(millis()));
+  debuglnI("Starting  ITimer0 OK, millis() = " + String(millis()));
 }
 
 #define TIMER0_INTERVAL_MS        1      // 1s = 1000ms
 
 
+
 result doAlert(eventMask e, prompt &item);
 
 result showEvent(eventMask e,navNode& nav,prompt& item) {
-  DebugSerial.print("event: ");
-  DebugSerial.println(e);
+  debugI("event: ");
+  debuglnI(e);
   return proceed;
 }
 
 int test=55;
 
 result action1(eventMask e,navNode& nav, prompt &item) {
-  DebugSerial.print("action1 event: ");
-  DebugSerial.print(e);
-  DebugSerial.println(", proceed menu");
-  DebugSerial.flush();
+  debugI("action1 event: ");
+  debugI(e);
+  debuglnI(", proceed menu");
   return proceed;
 }
 
 result action2(eventMask e,navNode& nav, prompt &item) {
-  DebugSerial.print("action2 event: ");
-  DebugSerial.print(e);
-  DebugSerial.println(", quiting menu.");
-  DebugSerial.flush();
+  debugI("action2 event: ");
+  debugI(e);
+  debuglnI(", quiting menu.");
   return quit;
 }
 
@@ -203,7 +209,8 @@ MENU(mainMenu,"Main menu",doNothing,noEvent,wrapStyle
 #define MAX_DEPTH 2
 
 /*
-const panel panels[] MEMMODE={{0,0,16,2}};DebugSerial.println("Starting  ITimer0 OK, millis() = " + String(millis()));
+const panel panels[] MEMMODE={{0,0,16,2}};
+DebugSerial.println("Starting  ITimer0 OK, millis() = " + String(millis()));
 navNode* nodes[sizeof(panels)/sizeof(panel)];
 panelsList pList(panels,nodes,1);
 idx_t tops[MAX_DEPTH];
@@ -213,10 +220,7 @@ outputsList out(outputs,1);//outputs list with 2 outputs
 */
 
 
-MENU_OUTPUTS(out,MAX_DEPTH
-  ,LCD_OUT(lcd,{0,0,16,2})
-  ,NONE
-);
+MENU_OUTPUTS(out,MAX_DEPTH,LCD_OUT(lcd,{0,0,16,2}),NONE);
 
 NAVROOT(nav,mainMenu,MAX_DEPTH,in,out);//the navigation root object
 
@@ -246,13 +250,18 @@ result idle(menuOut& o,idleEvent e) {
 
 
 
+
 void setup() {
   // put your setup code here, to run once:
-  DebugSerial.begin(); //activate USB CDC driver
+  #if defined(DebugV) || defined(DebugI)
+    DebugSerial.begin(); //activate DebugSerial device
+    #ifdef WaitForUsbSerial
+      while(!DebugSerial); //blocks till debug serial is connected... turn off if not connected to PC.
+    #endif
+  #endif
   //pinMode(encBtn,INPUT_PULLUP);
   pinMode(LED_BUILTIN,OUTPUT);
-  while(!DebugSerial);
-  DebugSerial.println("Arduino Menu Library");DebugSerial.flush();
+  debuglnI("Arduino Menu Library");
   lcd.begin(16, 2);
   lcd.setBacklight(1);
 
@@ -267,14 +276,14 @@ void setup() {
 
   // Interval in microsecs
   if (ITimer0.attachInterruptInterval(TIMER0_INTERVAL_MS * 1000, TimerHandler0))
-    DebugSerial.println("Starting  ITimer0 OK, millis() = " + String(millis()));
+    debuglnI("Starting  ITimer0 OK, millis() = " + String(millis()));
   else
-    DebugSerial.println("Can't set ITimer0. Select another freq. or timer");
+    debuglnI("Can't set ITimer0. Select another freq. or timer");
   delay(2000);
   clickEncoder.setAccelerationEnabled(false);
   ModbusRTUClient.begin(RS485ttl, 9600, SERIAL_8N1);
   if ( lte.begin(lte_Serial) ) {
-      DebugSerial.println("Initialied SARA-R4 module on a hardware serial port.");
+      debuglnI("Initialied SARA-R4 module on a hardware serial port.");
   }
 
 }
